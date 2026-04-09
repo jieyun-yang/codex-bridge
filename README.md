@@ -30,7 +30,7 @@ The contrast isn't "git-only vs. flexible." It's about **integration shape**. Th
 
 > Note: `codex-bridge`'s own `codex_review` tool also shells out to `codex review` via `execFile` — the in-process / Thread-pool advantage applies to the `share_context → chat` path (challenge + delegate modes), not to code review.
 
-**When the official plugin is the right pick:** you want a polished, OpenAI-maintained slash-command + hook experience for code review and task delegation, and your Codex usage is user-driven (you're happy typing `/codex:*` yourself).
+**When the official plugin is the right pick:** you want the polished, OpenAI-maintained slash-command + hook UX for **your own** Codex use, and you don't need agent-driven invocation. (If you do want agents to invoke Codex, the plugin doesn't add anything — agents would shell out to `codex exec` directly anyway, the same way gstack does.)
 
 **When `codex-bridge` is the right pick:** you have agents that need to call Codex programmatically and you want a **least-privilege tool grant**. You can hand an agent the narrow `mcp__codex__*` tools without also handing it `Bash` (which is the alternative if you want agent-driven Codex calls — Bash is a generic escape hatch that grants far more than "ask Codex a question"). You also get `share_context` as an explicit primitive so context-push and ask-question are two composable steps, and structured `{response, threadId}` data instead of stdout blobs to parse.
 
@@ -49,9 +49,15 @@ So the contrast isn't "files vs. real state." Both rely on Codex's own session c
 | Implementation size | ~1,075-line `SKILL.md` + ~1,748-line `SKILL.md.tmpl` (skill template, not bash script) | 410 lines of TypeScript across `mcp/src` + 84-line skill |
 | Extras | Telemetry, upgrade flow, repo-mode detection, preamble | None of that — single-purpose |
 
-**When gstack `/codex` is the right pick:** you're already using gstack for the rest of its toolkit, you want a feature-rich Codex skill with telemetry and upgrade flow built in, and you're comfortable granting `Bash` to anything that needs to invoke Codex.
+**When gstack `/codex` is the right pick:** you're **already** using gstack for the rest of its toolkit (QA, ship, design-review, etc.), so the codex skill comes along for free.
 
-**When `codex-bridge` is the right pick:** you want a **least-privilege MCP tool grant** for Codex (instead of giving every escalating agent `Bash` access just so it can shell out to `codex exec`), you want to avoid a full CLI spawn per turn on the threaded `share_context → chat` path, or you want a small, single-purpose component you can read end-to-end.
+**When gstack `/codex` is *not* a great fit:** you'd be installing gstack just for the codex skill. The bundling tax is real — gstack is a 30-skill toolkit with telemetry, upgrade flow, repo-mode detection, and a long preamble template. And the per-invocation cost is real too: every time the skill activates, its ~1,075-line `SKILL.md` (~6–8K tokens) gets loaded into your context budget before any work happens.
+
+**When `codex-bridge` is the right pick:**
+- **Least-privilege agent grant.** Hand an agent the narrow `mcp__codex__*` tools without also handing it `Bash` (which is the alternative if you want agent-driven Codex calls — `Bash` is a generic escape hatch granting far more than "ask Codex a question").
+- **Cheap to load.** ~84-line skill (~500 tokens) plus the MCP tool descriptions — meaningfully smaller than gstack's per-invocation context tax.
+- **No CLI cold-start on the threaded path.** `share_context → chat → chat` reuses an in-process `Thread`, avoiding the ~1–3s `codex exec` spawn per turn.
+- **Single-purpose.** A small TypeScript MCP + thin skill you can read end-to-end when something breaks.
 
 ### vs. rolling your own
 
