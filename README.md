@@ -11,11 +11,11 @@ The two pieces are independent — you can install just the MCP and call its too
 
 ## Why this exists (vs. the alternatives)
 
-Both alternatives below are real, working tools — `codex-bridge` is differentiated on **transport and integration shape**, not on whether the other tools "support multi-round" or "support delegation." They both do. The honest reasons to prefer `codex-bridge` are narrower than that.
+Two off-the-shelf options exist. Both are real, working tools — `codex-bridge` is differentiated on **transport and integration shape**, not on whether the other tools "support multi-round" or "support delegation." They both do. If you mostly drive Codex from the user prompt, the alternatives below may be a better starting point.
 
 ### vs. [`codex@openai-codex`](https://github.com/openai/codex-plugin-cc) plugin
 
-OpenAI's official plugin for Claude Code is broader than I initially gave it credit for. It exposes `/codex:review`, `/codex:adversarial-review` (for challenging design/implementation choices), `/codex:rescue` (delegate a task to a Codex subagent, with `--resume` and `--fresh` flags), plus `/codex:status`, `/codex:result`, `/codex:cancel`, and an opt-in review gate via `/codex:setup --enable-review-gate`. Session IDs are surfaced via `/codex:result` (when available) and `/codex:status`, so you can resume in Codex itself.
+OpenAI's official plugin exposes `/codex:review`, `/codex:adversarial-review` (for challenging design/implementation choices), `/codex:rescue` (delegate a task to a Codex subagent, with `--resume` and `--fresh` flags), plus `/codex:status`, `/codex:result`, `/codex:cancel`, and an opt-in review gate via `/codex:setup --enable-review-gate`. Session IDs are surfaced via `/codex:result` (when available) and `/codex:status`, so you can resume in Codex itself.
 
 The contrast isn't "git-only vs. flexible." It's about **integration shape**. The table below compares the threaded artifact-critique / delegation workflows on both sides — both products also have a dedicated git-review path (`/codex:review` and `codex_review` respectively) which is stateless and not what this row is about.
 
