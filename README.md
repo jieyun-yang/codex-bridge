@@ -11,36 +11,47 @@ The two pieces are independent — you can install just the MCP and call its too
 
 ## Why this exists (vs. the alternatives)
 
-I tried two off-the-shelf options first. Both fell short for the workflow I wanted (multi-round adversarial review of plans, designs, and code — not just git diffs):
+Both alternatives below are real, working tools — `codex-bridge` is differentiated on **transport and integration shape**, not on whether the other tools "support multi-round" or "support delegation." They both do. The honest reasons to prefer `codex-bridge` are narrower than that.
 
-### vs. `codex@openai-codex` plugin
+### vs. [`codex@openai-codex`](https://github.com/openai/codex-plugin-cc) plugin
 
-The official Codex plugin for Claude Code is built around a **review gate**: it shells out to `codex review` against a git diff, and that's it. Concretely:
+OpenAI's official plugin for Claude Code is broader than I initially gave it credit for. It exposes `/codex:review`, `/codex:adversarial-review` (for challenging design/implementation choices), `/codex:rescue` (delegate a task to a Codex subagent, with `--resume` and `--fresh` flags), plus `/codex:status`, `/codex:result`, `/codex:cancel`, and an opt-in review gate via `/codex:setup --enable-review-gate`. Session IDs are surfaced via `/codex:result` (when available) and `/codex:status`, so you can resume in Codex itself.
+
+The contrast isn't "git-only vs. flexible." It's about **integration shape**. The table below compares the threaded artifact-critique / delegation workflows on both sides — both products also have a dedicated git-review path (`/codex:review` and `codex_review` respectively) which is stateless and not what this row is about.
 
 | | `codex@openai-codex` plugin | `codex-bridge` |
 |---|---|---|
-| Plan/spec/design review | ❌ git-only | ✅ any artifact via `share_context → chat` |
-| Multi-round conversation | ❌ stateless per call | ✅ Thread persists 30 min, history preserved |
-| Context delivery | git diff only | arbitrary text/files via `share_context` |
-| Resume an earlier review | ❌ no thread IDs surfaced | ✅ `codex_chat` with `threadId` |
-| Task delegation | ❌ not a workflow it supports | ✅ `delegate` mode |
+| Surface | Slash commands (`/codex:*`) | MCP tools (`mcp__codex__*`) **+** companion skill |
+| Who can invoke | User via slash commands; review gate also runs as a stop hook | Any agent, skill, or workflow that calls MCP tools |
+| Free-form focus / context with the request | `/codex:adversarial-review` takes focus text; `/codex:rescue` takes a task description | Standalone `codex_share_context` tool — explicit "push context, no action" primitive composed with `codex_chat` |
+| Threaded multi-round | Yes — `/codex:rescue --resume`, jobs/status/result flow | Yes — same `Thread` object reused in-process, with SDK `resumeThread(id)` as fallback |
+| Per-turn cold-start (threaded path) | Not documented; treat as unspecified | One SDK init, subsequent turns are in-process method calls on a pooled `Thread` |
+| Concurrency on the threaded path | Not documented | In-process `Thread` pool with per-thread `WeakMap` mutex |
 
-If you only ever want "review my uncommitted diff," the official plugin is fine. The moment you want to ask follow-up questions, share a non-git artifact, or hand off a scoped task, you hit a wall.
+> Note: `codex-bridge`'s own `codex_review` tool also shells out to `codex review` via `execFile` — the in-process / Thread-pool advantage applies to the `share_context → chat` path (challenge + delegate modes), not to code review.
 
-### vs. gstack `/codex` skill ([gstack-main/codex](https://github.com/garrytan/gstack))
+**When the official plugin is the right pick:** you want a polished, OpenAI-maintained slash-command + hook experience for code review and task delegation, and you don't need other agents to call Codex programmatically.
 
-gstack's `/codex` skill is a much more ambitious bash wrapper around the Codex CLI — three modes (review / challenge / consult), session continuity via files in `~/.gstack/sessions/`, telemetry, etc. It's well-built for what it is, but it's a **shell-script wrapper around `codex` the CLI**, not an MCP server. That has consequences:
+**When `codex-bridge` is the right pick:** you want Codex available as a *tool* that any agent in your setup can call, you want `share_context` as an explicit primitive (so context-push and ask-question are two separate steps you can compose), or you want to embed Codex calls inside skills and agent contracts rather than driving everything from `/codex:*` commands.
+
+### vs. [gstack `/codex`](https://github.com/garrytan/gstack/blob/main/codex/SKILL.md) skill
+
+gstack's `/codex` skill is a thoroughly built Claude Code skill that wraps the Codex CLI. It has three modes (review / challenge / consult), opt-in telemetry, and a careful preamble that handles routing, upgrade checks, and session bookkeeping. Multi-round consult mode works by saving the Codex session ID to `.context/codex-session-id` and resuming with `codex exec resume <session-id>` — so Codex itself preserves the thread, gstack just remembers the ID.
+
+So the contrast isn't "files vs. real state." Both rely on Codex's own session continuity. It's about **transport** and **integration shape**:
 
 | | gstack `/codex` skill | `codex-bridge` |
 |---|---|---|
-| Transport | bash → `codex` CLI subprocess per turn | persistent stdio MCP, in-process Thread pool |
-| Multi-round state | filesystem session files | in-memory `Thread` objects (SDK-resumable by ID) |
-| Concurrency safety | none (no per-session lock) | per-thread `WeakMap` mutex |
-| Cold-start cost per turn | full CLI spawn each time | one SDK init, threads reused |
-| Claude integration | skill-only (no MCP tools) | skill **and** raw MCP tools available to any agent |
-| Lines of code | ~800 LOC bash + helpers | ~250 LOC TypeScript + ~90 LOC skill |
+| Transport | Bash → `codex` CLI subprocess per turn | Persistent stdio MCP, in-process `Thread` pool (for threaded chat / delegate; `codex_review` still shells out to `codex review`) |
+| Multi-round state | Codex session ID persisted to a file, resumed via `codex exec resume` | Same `Thread` object reused in-process; SDK `resumeThread(id)` as fallback |
+| Cold-start per turn (threaded path) | New `codex` process each turn | One SDK init; subsequent turns are in-process method calls |
+| Claude integration | Skill only (Bash/Read/Write/Glob/Grep tools) | MCP server **+** companion skill — any agent can call the MCP tools |
+| Implementation size | ~1,075-line `SKILL.md` + ~1,748-line `SKILL.md.tmpl` (skill template, not bash script) | 410 lines of TypeScript across `mcp/src` + 84-line skill |
+| Extras | Telemetry, upgrade flow, repo-mode detection, preamble | None of that — single-purpose |
 
-The big practical difference: with `codex-bridge`, **the same `Thread` object is reused across turns in the same conversation**, so Codex genuinely sees the prior turns instead of having to be re-primed from a session file. And because it's an MCP server, anything in your Claude Code setup (skills, agents, raw `mcp__codex__*` calls) can use it — not just the one `/codex` slash command.
+**When gstack `/codex` is the right pick:** you're already using gstack for the rest of its toolkit, you want a feature-rich Codex skill with telemetry and upgrade flow built in, and skill-only integration is fine.
+
+**When `codex-bridge` is the right pick:** you want MCP tools (so non-skill agents can call Codex too), you want to avoid a full CLI spawn per turn on the threaded `share_context → chat` path, or you want a small, single-purpose component you can read end-to-end.
 
 ### vs. rolling your own
 
