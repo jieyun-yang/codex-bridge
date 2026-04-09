@@ -10,6 +10,8 @@ user-invocable: true
 
 # /codex-collab
 
+Requires the `codex-bridge` MCP server. See https://github.com/jieyun-yang/codex-bridge for install. Without it, all `codex_*` calls fail.
+
 Cross-model collaboration via `codex-bridge` MCP. Three modes: challenge, code-review, delegate.
 
 ## Shared Behavior
@@ -23,7 +25,7 @@ Cross-model collaboration via `codex-bridge` MCP. Three modes: challenge, code-r
 ### Resume logic (challenge + delegate only)
 - If a threadId from a prior Codex call exists in this conversation AND the request is a continuation, use `codex_chat` with that threadId.
 - If the artifact file was modified since the last round (check file modification time or re-read and compare), tell the user the basis changed and start a fresh thread.
-- If no threadId is available or the thread expired (30-min TTL), start fresh and tell the user why.
+- If no threadId is available or the thread expired (30-min TTL — MCP server constraint, not configurable here), start fresh and tell the user why.
 
 ### Thread tracking (challenge + delegate only)
 After every Codex call in threaded modes, remember the threadId internally. On follow-up, use the threadId from the most recent Codex call in this conversation that matches the current mode and artifact.
@@ -52,7 +54,7 @@ Critique any artifact — plans, specs, designs, architecture docs. Constructive
 **Flow:**
 1. Read the artifact the user specified
 2. Determine the phase: shape, design, architecture, security, or code. Ask if unclear.
-3. Load the phase template from `~/.agents/skills/codex-collab/templates/<phase>.txt`
+3. Load the phase template from `~/.agents/skills/codex-collab/templates/<phase>.txt` (each template casts Codex as a phase-specific reviewer)
 4. Call `codex_share_context` with the artifact content → capture `threadId`
 5. Call `codex_chat` with `threadId`, the phase template, and instruction to critique the artifact
 6. Present findings in canonical format
