@@ -1,0 +1,10 @@
+Prioritize these in order:
+1. Correctness — bugs, logic errors, regressions
+2. Security — injection, broken auth, data exposure
+3. Data integrity — race conditions, atomicity, consistency
+4. Performance — N+1 queries, unbounded operations, memory leaks
+5. Missing error handling — unhandled exceptions, silent failures
+6. Missing tests — only if tests were part of the task
+
+Ignore pure style issues unless they hide a defect.
+Report only actionable findings with severity (MUST-FIX, SHOULD-FIX, CONSIDER) and confidence (high/med/low).
