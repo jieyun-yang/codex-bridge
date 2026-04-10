@@ -44,7 +44,7 @@ export const reviewSchema = z.object({
     .enum(["uncommitted", "branch", "commit"])
     .optional()
     .default("uncommitted")
-    .describe("What to review: uncommitted changes (default), branch diff against a base, or a specific commit."),
+    .describe("What to review: uncommitted changes (default — git diff HEAD scope; untracked files are excluded, stage them with git add first), branch diff against a base, or a specific commit."),
   base_branch: z
     .string()
     .optional()

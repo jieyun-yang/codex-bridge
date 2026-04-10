@@ -35,7 +35,7 @@ When any error has `retryable: false`, do not silently retry. Tell the user what
 
 Structured review of CODE specifically. Only use when the user explicitly asks for code review. For anything else (plans, specs, responses, designs) use the challenge mode below.
 
-1. Determine target: `uncommitted` (default), `branch` (with `base_branch`), or `commit` (with `commit_sha`).
+1. Determine target: `uncommitted` (default — `git diff HEAD` scope; **untracked files are excluded** — tell the user to `git add` new files first if they want them reviewed), `branch` (with `base_branch`), or `commit` (with `commit_sha`).
 2. Optionally set `focus`: `balanced` (default), `security`, `architecture`, `performance`, or `challenge`.
 3. Call `codex_code_review` with target + focus + working_dir.
 4. The response includes `result` — a typed `ReviewResult` with `findings[]` and `pressure_test[]`. Render it (see "Findings format" below).
