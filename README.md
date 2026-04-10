@@ -46,11 +46,11 @@ Use the **official OpenAI Codex plugin for Claude Code** if you want:
 - `codex_code_review` — structured code review for tracked git changes (untracked files excluded; `git add` first)
 - `codex_list_sessions` — debug/recovery path for old Codex sessions
 
-All tools return typed error envelopes with retry/resume guidance. Review and challenge modes return structured results (findings, strengths, pressure tests) validated against Zod schemas.
+All tools return typed error envelopes with retry/resume guidance.
 
 ### Skill modes
 - `challenge` — critique plans, specs, designs, architecture docs, responses, or any non-code artifact. Optional phase-specific lenses (shape, design, architecture, security, code) loaded from editable template files.
-- `code-review` — structured review of code diffs
+- `code-review` — review of code diffs
 - `delegate` — hand a scoped task to Codex and continue the thread across rounds
 
 ## Quick examples
@@ -87,9 +87,9 @@ codex-bridge/
 │   │   └── tools/
 │   │       ├── chat.ts           # multi-turn chat + structured challenge output
 │   │       ├── share-context.ts  # stage context capsule (bridge-local, no Codex turn)
-│   │       ├── code-review.ts    # structured code review via git diff + outputSchema
+│   │       ├── code-review.ts    # code review via git diff
 │   │       └── sessions.ts       # list ~/.codex/session_index.jsonl (debug/recovery)
-│   ├── test/                     # 34 contract tests (vitest)
+│   ├── test/                     # 21 contract tests (vitest)
 │   ├── package.json
 │   └── tsconfig.json
 └── skill/
@@ -181,7 +181,7 @@ Restart Claude Code. `/codex-collab` should now be available.
 | `CODEX_BIN_PATH` | `codex` (PATH lookup) | Absolute path to the `codex` CLI binary |
 | `CODEX_DEFAULT_MODEL` | `gpt-5.4` | Default Codex model for all tools |
 
-Timeouts: 120s for text mode, 300s for structured output (challenge/review). Override per-call with `timeout_ms`.
+Default timeout: 120s per call. Override with `timeout_ms`.
 
 ---
 
@@ -192,9 +192,8 @@ Timeouts: 120s for text mode, 300s for structured output (challenge/review). Ove
 | `command not found: node` | Use absolute path in MCP config `command` field |
 | `spawn codex ENOENT` | Set `CODEX_BIN_PATH` env var |
 | `Codex Exec exited with code 127` | Add `PATH` to MCP config env |
-| Structured output timeout | Pass higher `timeout_ms`, or simplify the prompt |
+| Codex call timeout | Pass higher `timeout_ms`, or simplify the prompt |
 | `session_consumed` error | Use `thread_id` from the chat response for follow-ups |
-| `schema_validation_error` | Retry, or switch to `output_format=text` |
 
 ---
 
@@ -205,7 +204,7 @@ cd mcp
 npm install
 npm run build         # one-shot tsc
 npm run dev           # tsc --watch
-npm test              # vitest (34 contract tests)
+npm test              # vitest (21 contract tests)
 ```
 
 After rebuilding, restart Claude Code so it re-spawns the MCP server.
