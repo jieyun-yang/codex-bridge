@@ -2,34 +2,34 @@
 
 `codex-bridge` is a small toolkit for **Claude ↔ Codex collaboration** inside Claude Code.
 
-It is built for users who want Codex to help review and challenge more than code:
+It is designed for teams who want Codex to help with more than code review:
 - plans
 - specs
 - architecture docs
 - designs
-- proposed responses
+- draft responses
 - scoped implementation tasks
 
 The project has two parts:
 
-1. **`mcp/`** — a stdio MCP server that gives Claude narrow, programmatic Codex tools
-2. **`skill/codex-collab/`** — a Claude Code skill (`/codex-collab`) that turns those tools into a usable workflow
+1. **`mcp/`** — a stdio MCP server that exposes Codex as narrow, agent-callable tools
+2. **`skill/codex-collab/`** — a Claude Code skill (`/codex-collab`) that turns those tools into a usable workflow for humans
 
 ## Why choose this
 
-Choose `codex-bridge` when your main need is **artifact critique and multi-round collaboration**, not just code review.
+Choose `codex-bridge` when your main need is **multi-round Claude ↔ Codex collaboration**, especially on non-code artifacts.
 
 It is a good fit if you want:
-- Codex to review plans, specs, designs, architecture, or Claude's own responses
+- Claude to use Codex to review plans, specs, designs, architecture, or draft responses
 - explicit `share_context → chat` workflows for iterative critique
-- Claude agents to call Codex through MCP tools instead of generic shell access
-- a small integration you can read, debug, and modify end-to-end
+- agents to call Codex programmatically through MCP tools
+- a small integration that is easy to read, debug, and modify
 
 What makes it different:
 - it is **artifact-first**, not only code-review-first
+- it is **agent-friendly**, not only user-command-driven
 - it supports **multi-turn collaboration** on the same artifact
-- it gives Claude **least-privilege Codex access** through MCP
-- it keeps the surface area small enough to understand quickly
+- it gives Claude **least-privilege Codex access** through MCP instead of broad shell access
 
 ## When not to choose this
 
