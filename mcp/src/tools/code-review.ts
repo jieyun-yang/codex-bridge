@@ -7,23 +7,15 @@ import { typedError, classifyError } from "../errors.js";
 import { REVIEW_SYSTEM_PROMPT, buildReviewPrompt } from "../prompts.js";
 
 /**
- * codex_code_review — code review with structured output (M3).
+ * codex_code_review — code review via SDK thread + system prompt.
  *
- * Architectural change vs Slice 1: this tool used to shell out to the
- * `codex review` CLI subcommand, which produced free-text. The new design
- * runs review through the SDK (`thread.run`) with `outputSchema` set, which
- * constrains the model to emit JSON conforming to the ReviewResult schema.
- * The bridge then parses + re-validates with Zod (the SDK does not validate
- * server-side — `finalResponse` is always a string).
+ * Builds a diff from git, sends it to a fresh Codex thread with the
+ * review system prompt + rubric, and returns the free-text response.
+ * The system prompt tells the model what to produce (findings, strengths,
+ * pressure tests); Claude handles rendering on the skill side.
  *
- * Diff sourcing: the bridge calls `git` directly. The previous CLI path used
- * codex's built-in review subcommand which had its own diff logic; we now
- * own that path so the rubric and system prompt can be tuned independently.
- *
- * Statelessness: review starts a fresh thread per call. There is no resume
- * path. Follow-ups (e.g. "focus on security") are a separate call with the
- * focus argument adjusted, not a thread continuation. This matches the
- * original SKILL.md design and avoids accumulating per-review thread state.
+ * Stateless: starts a fresh thread per call. Follow-ups (e.g. "focus on
+ * security") are a separate call with the focus argument adjusted.
  */
 
 const execFileAsync = promisify(execFile);
@@ -75,8 +67,8 @@ export const reviewSchema = z.object({
   timeout_ms: z
     .number()
     .optional()
-    .default(300000)
-    .describe("Per-call timeout. Code reviews with structured output can be slow — the model has to constrain its generation to the Zod-derived JSON schema AND reason about a diff. Default is 300s (5 min); bump it for very large or complex reviews."),
+    .default(120000)
+    .describe("Per-call timeout in ms. Default is 120s (2 min). Bump for very large or complex diffs."),
 });
 
 export type ReviewInput = z.infer<typeof reviewSchema>;

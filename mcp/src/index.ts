@@ -16,9 +16,8 @@ const server = new McpServer({
 // and historical resumes. Lazy-creates the underlying Codex thread when given
 // a session_id, so no billed turn is wasted on context staging.
 //
-// Supports structured output via output_format=challenge: the bridge attaches
-// a Zod-derived JSON schema to the run, validates the response server-side,
-// and returns a typed ChallengeResult object alongside the raw JSON.
+// output_format=challenge prepends the challenge system prompt for structured
+// critique framing. All output is free text — Claude handles rendering.
 server.tool(
   "codex_chat",
   "Send a message on a Codex thread. Pass session_id (from codex_share_context) for the first turn after staging context, or thread_id for follow-ups / historical resumes. Exactly one of session_id or thread_id is required. Use output_format=challenge for structured critique of design/spec/plan artifacts.",

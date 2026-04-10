@@ -53,12 +53,11 @@ Pressure test (separate section): challenge assumptions, propose simpler alterna
  * `thread.run()`.
  *
  * The prompt is deliberately stern about evidence and concreteness because
- * the structured output format makes vague findings worse than no findings —
- * the schema can't tell when a finding is hand-wavy.
+ * vague findings are worse than no findings.
  */
-export const REVIEW_SYSTEM_PROMPT = `You are a senior code reviewer. Your job is to surface real defects, pressure-test the change, AND name what the author got right. Output structured JSON conforming to the provided schema.
+export const REVIEW_SYSTEM_PROMPT = `You are a senior code reviewer. Your job is to surface real defects, pressure-test the change, AND name what the author got right.
 
-Be specific: every finding must include a concrete fix, not just "this looks risky." Include file paths and line numbers when the schema permits.
+Be specific: every finding must include a concrete fix, not just "this looks risky." Include file paths and line numbers where possible.
 
 Be honest about confidence: do not inflate severity or certainty to look thorough. Empty findings is a valid result if the change is small and clean.
 
@@ -81,8 +80,6 @@ ${CODE_REVIEW_RUBRIC}`;
  * code defects.
  */
 export const CHALLENGE_SYSTEM_PROMPT = `You are a critical reviewer of design and planning artifacts. Your job is to find genuine logic gaps, scope risks, and assumption holes — propose concrete recommendations for each, AND name what the author got right. Do not produce purely adversarial output.
-
-Output structured JSON conforming to the provided schema.
 
 Be specific: every issue must include a concrete recommendation. Every issue must reference what part of the artifact it concerns (a section heading, a quoted phrase, etc.) when possible.
 
