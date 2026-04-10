@@ -20,8 +20,6 @@ Three modes: **code-review** (code specifically), **challenge** (plans, specs, d
 
 **Identity model.** `codex_share_context` is bridge-local — it does NOT consume a Codex turn. It returns a `session_id` (`ctx_<uuid>`). The first `codex_chat` after staging takes that `session_id`; the bridge lazy-creates the Codex thread, injects the capsule, and returns a real `thread_id` in the response. All follow-ups use `thread_id`. The session_id is single-use and rejected on reuse.
 
-**First-turn latency.** The first `codex_chat` call on a new session absorbs both thread creation AND the actual task in one round-trip. This is by design — it saves a billed turn vs the old "Context received" approach — but it means the first response is slower than follow-ups.
-
 **Resume.** Remember the `thread_id` from each `codex_chat` response. On follow-up, call `codex_chat` with that `thread_id`. If the artifact file changed since the last round (mtime check or re-read), tell the user the basis changed and start a fresh session via a new `codex_share_context`. Bridge thread cache evicts after 30 minutes idle, but the underlying Codex thread is still resumable — eviction is not expiry.
 
 **Errors.** All `codex_*` errors return a typed JSON envelope with `category`, `retryable`, `resumable`, `next_step`, and `context`. Parse the envelope to decide what to do — don't guess from the message string. Key categories:
