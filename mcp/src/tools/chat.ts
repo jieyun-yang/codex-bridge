@@ -128,15 +128,17 @@ export async function chatTool(input: ChatInput) {
       }
     }
 
-    // Build prompt. Layers:
-    // 1. (challenge mode) System instructions for critique framing.
-    // 2. (challenge mode) Focus directive.
-    // 3. Background context capsule (if staged).
-    // 4. User prompt.
+    // Build prompt. The challenge system prompt is only prepended on the
+    // FIRST turn (session_id flow). Follow-ups (thread_id flow) already have
+    // the framing from turn 1 in the SDK's thread history. This avoids
+    // re-sending ~10 lines of system instructions on every follow-up turn.
     const promptParts: string[] = [];
-    if (input.output_format === "challenge") {
-      promptParts.push(`[SYSTEM INSTRUCTION — follow this for the entire conversation]:\n${CHALLENGE_SYSTEM_PROMPT}`);
-      promptParts.push(`[Focus directive]\nFocus: ${input.focus}. Weight your critique toward this area.`);
+    const isFirstTurn = !!input.session_id;
+    if (input.output_format === "challenge" && isFirstTurn) {
+      promptParts.push(`[SYSTEM INSTRUCTION]:\n${CHALLENGE_SYSTEM_PROMPT}`);
+    }
+    if (input.output_format === "challenge" && input.focus !== "balanced") {
+      promptParts.push(`Focus: ${input.focus}.`);
     }
     if (capsuleText) {
       promptParts.push(`[Background context]\n${capsuleText}`);
