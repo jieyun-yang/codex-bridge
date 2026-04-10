@@ -81,8 +81,7 @@ codex-bridge/
 │   │   ├── index.ts              # registers the 4 tools
 │   │   ├── codex-manager.ts      # thread pool, mutex, TTL eviction, RuntimeOptions
 │   │   ├── session-store.ts      # bridge-local capsule staging (session_id → thread_id)
-│   │   ├── schemas.ts            # Zod result schemas (ReviewResult, ChallengeResult)
-│   │   ├── prompts.ts            # bridge-side system prompts + code-review rubric
+│   │   ├── prompts.ts            # bridge-side system prompts (review + challenge)
 │   │   ├── errors.ts             # typed error categories + classifyError
 │   │   ├── utils.ts              # formatError, textResponse helpers
 │   │   └── tools/
