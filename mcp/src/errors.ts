@@ -96,13 +96,18 @@ export function classifyError(err: unknown): ErrorCategory {
     if (msg.includes("401") || msg.includes("unauthorized") || msg.includes("api key") || msg.includes("authentication")) {
       return "auth_missing";
     }
-    // Codex binary not found. Use specific patterns only — bare "not found"
-    // was too broad and caught thread errors. Check ENOENT (Node fs/spawn
-    // error code) and "command not found" (shell-level error).
+    // ENOENT disambiguation. Node spawn errors include err.path — when the
+    // codex binary doesn't exist, err.path is the binary name. When a working
+    // dir or other filesystem path doesn't exist, it's a different path.
+    // "command not found" is always a binary issue (shell-level error).
     if (msg.includes("enoent") || msg.includes("command not found")) {
-      return "codex_missing";
+      // Check if this is a spawn failure for the codex binary specifically.
+      const errPath = (err as NodeJS.ErrnoException).path ?? "";
+      const isSpawnFailure = errPath === "codex" || errPath.endsWith("/codex") ||
+        msg.includes("command not found") || msg.includes("spawn");
+      return isSpawnFailure ? "codex_missing" : "cwd_invalid";
     }
-    // Working directory issues.
+    // Working directory / filesystem issues.
     if (msg.includes("eacces") || msg.includes("enotdir") || msg.includes("permission denied")) {
       return "cwd_invalid";
     }
