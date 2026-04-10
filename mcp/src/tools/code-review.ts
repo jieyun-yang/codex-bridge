@@ -186,7 +186,7 @@ export async function reviewTool(input: ReviewInput) {
       return typedError("diff_too_large", "codex_code_review", { bytes: diff.length, limit: MAX_DIFF_BYTES });
     }
 
-    // 2. Build the structured prompt: system instructions + rubric + framing
+    // 2. Build the prompt: system instructions + rubric + framing
     //    + diff. The system prompt is prepended to the user prompt because
     //    the SDK has no separate system-prompt channel (same convention as
     //    codex_exec used in Slice 1).
@@ -201,9 +201,8 @@ export async function reviewTool(input: ReviewInput) {
     });
     const fullPrompt = `[SYSTEM INSTRUCTION — follow this for the entire conversation]:\n${REVIEW_SYSTEM_PROMPT}\n\n[TASK]:\n${userPrompt}`;
 
-    // 3. Start a fresh thread and run. No outputSchema — the system prompt
-    //    tells the model what content to produce (findings, strengths,
-    //    pressure tests), and Claude handles rendering on the skill side.
+    // 3. Start a fresh thread and run. The system prompt tells the model
+    //    what content to produce; Claude handles rendering on the skill side.
     const runtime: RuntimeOptions = {
       ...(input.model && { model: input.model }),
       ...(input.reasoning_effort && { reasoning_effort: input.reasoning_effort }),

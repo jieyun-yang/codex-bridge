@@ -1,5 +1,5 @@
 /**
- * Bridge-side prompt content for structured Codex output (M3).
+ * Bridge-side prompt content for Codex review and challenge modes.
  *
  * Why this lives in the bridge, not in the skill:
  *   These prompts are TOOL SEMANTICS, not presentation logic. They change
@@ -18,7 +18,7 @@
  * the priority ordering and severity vocabulary for findings.
  *
  * Sourced from the prior skill-side templates/code-review-rubric.txt content,
- * lightly expanded to match the new structured output schema.
+ * lightly expanded from the original skill-side rubric.
  */
 export const CODE_REVIEW_RUBRIC = `## Review Rubric
 
