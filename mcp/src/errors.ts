@@ -24,8 +24,6 @@ export type ErrorCategory =
   | "review_target_invalid" // missing base_branch or commit_sha for the target type
   | "diff_empty"            // nothing to review for the requested target
   | "diff_too_large"        // diff exceeds size limit
-  | "schema_parse_error"    // structured output: JSON.parse failed
-  | "schema_validation_error" // structured output: Zod validation failed
   | "stage_rejected"        // share_context: append on thread_id, or consumed session
   | "unknown"               // catch-all for unexpected errors
 
@@ -66,8 +64,6 @@ const CATEGORY_SEMANTICS: Record<ErrorCategory, { retryable: boolean; resumable:
   review_target_invalid:  { retryable: false, resumable: false, next_step: "Provide the required parameter: base_branch for target=branch, commit_sha for target=commit." },
   diff_empty:             { retryable: false, resumable: false, next_step: "Nothing to review. Check the target — are there actually changes to review?" },
   diff_too_large:         { retryable: false, resumable: false, next_step: "Scope down: review individual commits, a single directory, or split the branch diff." },
-  schema_parse_error:     { retryable: true,  resumable: true,  next_step: "Codex returned non-JSON for a structured mode. Retry — the model may produce valid JSON on the next attempt. Staged context is preserved." },
-  schema_validation_error:{ retryable: true,  resumable: true,  next_step: "Codex returned JSON that didn't match the expected schema. Retry — or switch to output_format=text if the schema constraint is causing persistent failures. Staged context is preserved." },
   stage_rejected:         { retryable: false, resumable: true,  next_step: "Check the error detail. Common causes: mode=append on a thread_id (not allowed), or staging into a consumed session_id." },
   unknown:                { retryable: false, resumable: false, next_step: "Unexpected error. Check the message for details." },
 };

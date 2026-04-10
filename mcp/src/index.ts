@@ -35,16 +35,12 @@ server.tool(
   shareContextTool
 );
 
-// Code review with structured output. Explicitly for CODE — diffs, files,
-// generated code. For plans, specs, designs, or other non-code artifacts,
-// use codex_chat with output_format=challenge instead.
-//
-// Builds the diff from git, runs through the SDK with the ReviewResult Zod
-// schema attached as outputSchema, parses and re-validates server-side,
-// returns typed structured result.
+// Code review. Explicitly for CODE — diffs, files, generated code.
+// For plans, specs, designs, or other non-code artifacts, use codex_chat
+// with output_format=challenge instead.
 server.tool(
   "codex_code_review",
-  "Run Codex structured review on CODE specifically — uncommitted changes, a branch diff, or a specific commit. For plans/specs/designs/any non-code artifact, use codex_chat with output_format=challenge instead. Returns a structured ReviewResult with findings[] and pressure_test[] sections.",
+  "Run Codex code review on uncommitted changes, a branch diff, or a specific commit. For plans/specs/designs/any non-code artifact, use codex_chat with output_format=challenge instead.",
   reviewSchema.shape,
   reviewTool
 );

@@ -44,12 +44,6 @@ describe("typedError", () => {
     expect(envelope.resumable).toBe(false);
   });
 
-  it("marks schema_parse_error as retryable (model might emit valid JSON on retry)", () => {
-    const envelope = JSON.parse(typedError("schema_parse_error", "codex_chat").content[0].text);
-    expect(envelope.retryable).toBe(true);
-    expect(envelope.resumable).toBe(true);
-  });
-
   it("marks identity_ambiguous as non-retryable but resumable", () => {
     const envelope = JSON.parse(typedError("identity_ambiguous", "codex_chat").content[0].text);
     expect(envelope.retryable).toBe(false);

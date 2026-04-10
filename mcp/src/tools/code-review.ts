@@ -1,11 +1,9 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 import { startThread, runOnThread, getThreadId, type RuntimeOptions } from "../codex-manager.js";
 import { formatError, textResponse } from "../utils.js";
 import { typedError, classifyError } from "../errors.js";
-import { ReviewResult, Focus } from "../schemas.js";
 import { REVIEW_SYSTEM_PROMPT, buildReviewPrompt } from "../prompts.js";
 
 /**
@@ -53,7 +51,8 @@ export const reviewSchema = z.object({
     .string()
     .optional()
     .describe("Commit SHA to review. Required when target is 'commit'."),
-  focus: Focus
+  focus: z
+    .enum(["balanced", "security", "architecture", "performance", "challenge"])
     .optional()
     .default("balanced")
     .describe("Optional focus weighting: balanced (default), security, architecture, performance, or challenge."),
@@ -210,69 +209,23 @@ export async function reviewTool(input: ReviewInput) {
     });
     const fullPrompt = `[SYSTEM INSTRUCTION — follow this for the entire conversation]:\n${REVIEW_SYSTEM_PROMPT}\n\n[TASK]:\n${userPrompt}`;
 
-    // 3. Convert the Zod result schema to JSON schema for the SDK. target=openAi
-    //    matches the format the Codex CLI's --output-schema expects.
-    const jsonSchema = zodToJsonSchema(ReviewResult, { target: "openAi" });
-
-    // 4. Start a fresh thread and run with outputSchema attached.
+    // 3. Start a fresh thread and run. No outputSchema — the system prompt
+    //    tells the model what content to produce (findings, strengths,
+    //    pressure tests), and Claude handles rendering on the skill side.
     const runtime: RuntimeOptions = {
       ...(input.model && { model: input.model }),
       ...(input.reasoning_effort && { reasoning_effort: input.reasoning_effort }),
       ...(input.sandbox_mode && { sandbox_mode: input.sandbox_mode }),
     };
     const thread = startThread(input.working_dir, runtime);
-    const finalResponse = await runOnThread(
-      thread,
-      fullPrompt,
-      input.timeout_ms,
-      { outputSchema: jsonSchema }
-    );
+    const response = await runOnThread(thread, fullPrompt, input.timeout_ms);
 
-    // 5. Parse and validate.
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(finalResponse);
-    } catch (err) {
-      return typedError("schema_parse_error", "codex_code_review", { raw_response: finalResponse },
-        `Codex returned non-JSON: ${formatError(err)}`
-      );
-    }
-
-    const validation = ReviewResult.safeParse(parsed);
-    if (!validation.success) {
-      return typedError("schema_validation_error", "codex_code_review",
-        { issues: validation.error.issues, raw_response: finalResponse },
-        "Codex output did not match ReviewResult schema."
-      );
-    }
-
-    // 6. Override bridge-known metadata and normalize soft-optional fields.
-    //    `focus` and `target` are authored by the bridge (model may deviate,
-    //    we overwrite). `strengths` defaults to [] when the model omits it —
-    //    the schema is optional to prevent a missing presentation field from
-    //    sinking an otherwise-valid review (see prior Codex round-1 finding).
-    //    The system prompt still instructs the model to populate strengths.
-    const result: ReviewResult = {
-      ...validation.data,
-      focus: input.focus,
-      target: {
-        type: input.target,
-        base_branch: input.base_branch,
-        commit_sha: input.commit_sha,
-      },
-      strengths: validation.data.strengths ?? [],
-    };
-
-    // 7. Return the validated structured result alongside the thread_id (for
-    //    optional follow-up via codex_chat) and a flag indicating the result
-    //    is structured (so the skill knows to render it, not display raw).
     const threadId = getThreadId(thread);
     return textResponse(
       JSON.stringify(
         {
-          result,
+          response,
           thread_id: threadId,
-          structured: true,
         },
         null,
         2

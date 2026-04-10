@@ -1,4 +1,4 @@
-import { Codex, Thread, TurnOptions, ThreadOptions, ModelReasoningEffort, SandboxMode } from "@openai/codex-sdk";
+import { Codex, Thread, ThreadOptions, ModelReasoningEffort, SandboxMode } from "@openai/codex-sdk";
 
 const CODEX_PATH = process.env.CODEX_BIN_PATH || "codex";
 const DEFAULT_MODEL = process.env.CODEX_DEFAULT_MODEL || "gpt-5.4";
@@ -119,16 +119,11 @@ export class TimeoutError extends Error {
  *
  * NOTE: timeout_ms is per-call, not end-to-end. If this call is queued behind
  * another on the same thread, the wait for the mutex is not counted.
- *
- * `extraTurnOptions` is merged into the SDK's TurnOptions. Used by structured-
- * output flows (review, challenge) to attach `outputSchema`. The `signal`
- * field is always set by this function and cannot be overridden.
  */
 export async function runOnThread(
   thread: Thread,
   prompt: string,
-  timeoutMs: number = DEFAULT_TIMEOUT_MS,
-  extraTurnOptions?: Omit<TurnOptions, "signal">
+  timeoutMs: number = DEFAULT_TIMEOUT_MS
 ): Promise<string> {
   const release = await acquireThreadLock(thread);
 
@@ -147,10 +142,7 @@ export async function runOnThread(
   if (preEntry) preEntry.activeTurns++;
 
   try {
-    const turn = await thread.run(prompt, {
-      ...extraTurnOptions,
-      signal: controller.signal,
-    });
+    const turn = await thread.run(prompt, { signal: controller.signal });
     // Register thread in pool now that ID is available.
     if (thread.id && !threadPool.has(thread.id)) {
       threadPool.set(thread.id, { thread, lastUsed: Date.now(), activeTurns: 1 });
