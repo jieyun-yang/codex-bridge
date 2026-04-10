@@ -1,9 +1,18 @@
-import { Codex, Thread } from "@openai/codex-sdk";
+import { Codex, Thread, TurnOptions, ThreadOptions, ModelReasoningEffort, SandboxMode } from "@openai/codex-sdk";
 
 const CODEX_PATH = process.env.CODEX_BIN_PATH || "codex";
 const DEFAULT_MODEL = process.env.CODEX_DEFAULT_MODEL || "gpt-5.4";
 const DEFAULT_TIMEOUT_MS = 120_000;
 const THREAD_TTL_MS = 30 * 60_000; // evict idle threads after 30 minutes
+
+/** Runtime controls that callers can pass to startThread/resumeThread. */
+export interface RuntimeOptions {
+  model?: string;
+  reasoning_effort?: ModelReasoningEffort;
+  sandbox_mode?: SandboxMode;
+}
+
+export { ModelReasoningEffort, SandboxMode };
 
 // Threads keyed by ID. Entries track last-use time and active turn count.
 const threadPool = new Map<string, { thread: Thread; lastUsed: number; activeTurns: number }>();
@@ -36,30 +45,51 @@ function evictStaleThreads(): void {
   }
 }
 
+/** Build SDK ThreadOptions from our RuntimeOptions + working directory. */
+function buildThreadOptions(workingDirectory?: string, runtime?: RuntimeOptions): ThreadOptions {
+  return {
+    workingDirectory,
+    skipGitRepoCheck: true,
+    model: runtime?.model || DEFAULT_MODEL,
+    ...(runtime?.reasoning_effort && { modelReasoningEffort: runtime.reasoning_effort }),
+    ...(runtime?.sandbox_mode && { sandboxMode: runtime.sandbox_mode }),
+  };
+}
+
 /**
  * Start a new thread. Returns the Thread object plus the ID once it is available
  * (the ID is populated only after the first run() call).
  */
-export function startThread(workingDirectory?: string, model?: string): Thread {
+export function startThread(workingDirectory?: string, runtime?: RuntimeOptions): Thread {
   evictStaleThreads();
-  return getCodex().startThread({ workingDirectory, skipGitRepoCheck: true, model: model || DEFAULT_MODEL });
+  return getCodex().startThread(buildThreadOptions(workingDirectory, runtime));
 }
 
 /**
  * Resume a thread by ID. Checks the local pool first to avoid re-creating.
+ *
+ * IMPORTANT: Runtime controls (model, reasoning_effort, sandbox_mode) are set
+ * at thread creation time via SDK ThreadOptions. For hot-resumed threads
+ * (already in the local pool), the runtime parameter is IGNORED because the
+ * Thread object was already created with its original options. This is an SDK
+ * constraint, not a bridge choice — there is no API to mutate ThreadOptions
+ * after creation. Runtime controls only take effect on cold resumes (after
+ * pool eviction or process restart).
  */
-export function resumeThread(threadId: string, workingDirectory?: string, model?: string): Thread {
+export function resumeThread(threadId: string, workingDirectory?: string, runtime?: RuntimeOptions): Thread {
   evictStaleThreads();
   const entry = threadPool.get(threadId);
   if (entry) {
     entry.lastUsed = Date.now();
+    // Warn if caller passed runtime options that will be ignored on hot resume.
+    if (runtime && (runtime.model || runtime.reasoning_effort || runtime.sandbox_mode)) {
+      process.stderr.write(
+        `[codex-bridge] Warning: runtime options ignored for hot-resumed thread ${threadId} — options are set at thread creation time only.\n`
+      );
+    }
     return entry.thread;
   }
-  const thread = getCodex().resumeThread(threadId, {
-    workingDirectory,
-    skipGitRepoCheck: true,
-    model: model || DEFAULT_MODEL,
-  });
+  const thread = getCodex().resumeThread(threadId, buildThreadOptions(workingDirectory, runtime));
   threadPool.set(threadId, { thread, lastUsed: Date.now(), activeTurns: 0 });
   return thread;
 }
@@ -89,11 +119,16 @@ export class TimeoutError extends Error {
  *
  * NOTE: timeout_ms is per-call, not end-to-end. If this call is queued behind
  * another on the same thread, the wait for the mutex is not counted.
+ *
+ * `extraTurnOptions` is merged into the SDK's TurnOptions. Used by structured-
+ * output flows (review, challenge) to attach `outputSchema`. The `signal`
+ * field is always set by this function and cannot be overridden.
  */
 export async function runOnThread(
   thread: Thread,
   prompt: string,
-  timeoutMs: number = DEFAULT_TIMEOUT_MS
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+  extraTurnOptions?: Omit<TurnOptions, "signal">
 ): Promise<string> {
   const release = await acquireThreadLock(thread);
 
@@ -101,16 +136,24 @@ export async function runOnThread(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   // Track active turns so eviction doesn't remove threads mid-execution.
-  // We increment before the call and always decrement in finally, re-reading
-  // from the pool to handle threads that get registered mid-execution.
+  // Increment before the call, always decrement in finally.
+  //
+  // For brand-new threads (thread.id is null before first run), there is no
+  // pool entry yet. After run() succeeds, we register with activeTurns: 1
+  // (not 0) because we ARE inside an active turn. The finally decrement then
+  // brings it back to 0. Previously this was set to 0, causing an underflow
+  // to -1 that prevented eviction and could lead to mid-run thread deletion.
   const preEntry = thread.id ? threadPool.get(thread.id) : undefined;
   if (preEntry) preEntry.activeTurns++;
 
   try {
-    const turn = await thread.run(prompt, { signal: controller.signal });
-    // Register thread in pool now that ID is available
+    const turn = await thread.run(prompt, {
+      ...extraTurnOptions,
+      signal: controller.signal,
+    });
+    // Register thread in pool now that ID is available.
     if (thread.id && !threadPool.has(thread.id)) {
-      threadPool.set(thread.id, { thread, lastUsed: Date.now(), activeTurns: 0 });
+      threadPool.set(thread.id, { thread, lastUsed: Date.now(), activeTurns: 1 });
     } else if (thread.id) {
       threadPool.get(thread.id)!.lastUsed = Date.now();
     }
@@ -122,10 +165,11 @@ export async function runOnThread(
     throw err;
   } finally {
     clearTimeout(timer);
-    // Decrement from current pool entry (may differ from preEntry for new threads)
-    const postEntry = thread.id ? threadPool.get(thread.id) : undefined;
-    if (preEntry) preEntry.activeTurns--;
-    else if (postEntry) postEntry.activeTurns--;
+    // Decrement from the current pool entry. For new threads, this is the
+    // entry we just registered at activeTurns: 1 → goes to 0. For existing
+    // threads, preEntry was incremented before run → goes back down.
+    const currentEntry = thread.id ? threadPool.get(thread.id) : undefined;
+    if (currentEntry) currentEntry.activeTurns--;
     release();
   }
 }

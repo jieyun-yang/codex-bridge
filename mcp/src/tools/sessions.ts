@@ -2,7 +2,8 @@ import { readFile } from "fs/promises";
 import { homedir } from "os";
 import { join } from "path";
 import { z } from "zod";
-import { errorResponse, formatError, textResponse } from "../utils.js";
+import { formatError, textResponse } from "../utils.js";
+import { typedError } from "../errors.js";
 
 export const listSessionsSchema = z.object({
   limit: z.number().int().min(1).max(50).optional().default(10),
@@ -31,6 +32,6 @@ export async function listSessionsTool(input: ListSessionsInput) {
 
     return textResponse(JSON.stringify({ sessions, count: sessions.length }, null, 2));
   } catch (err) {
-    return errorResponse(`codex_list_sessions failed: ${formatError(err)}`);
+    return typedError("unknown", "codex_list_sessions", { path: indexPath }, formatError(err));
   }
 }
