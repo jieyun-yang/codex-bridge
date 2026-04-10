@@ -172,6 +172,14 @@ export async function reviewTool(input: ReviewInput) {
         );
       }
       if (msgLower.includes("enoent") || msgLower.includes("command not found")) {
+        // Disambiguate: ENOENT from spawning git vs ENOENT from a bad cwd.
+        const errPath = (err as NodeJS.ErrnoException).path ?? "";
+        const isGitMissing = errPath === "git" || errPath.endsWith("/git") || msgLower.includes("command not found");
+        if (!isGitMissing) {
+          return typedError("cwd_invalid", "codex_code_review", { working_dir: input.working_dir },
+            `Path not found (ENOENT): ${input.working_dir ?? "cwd"}. Check that the working directory exists.`
+          );
+        }
         return typedError("codex_missing", "codex_code_review", {},
           "git binary not found. codex_code_review requires git to build diffs."
         );
