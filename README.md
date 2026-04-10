@@ -33,11 +33,10 @@ What makes it different:
 
 ## When not to choose this
 
-Use the **official OpenAI Codex plugin for Claude Code** if your main goal is:
-- polished slash-command UX
-- built-in `setup`, `status`, `result`, and `cancel`
-- background job lifecycle for long-running work
-- code review and code-task delegation as the primary workflow
+Use the **official OpenAI Codex plugin for Claude Code** if you want:
+- a ready-to-go experience with minimal configuration
+- the ability to hand off long-running work, check status, and cancel
+- code review and code-task delegation as your primary Codex use case
 
 ## What this gives you
 
