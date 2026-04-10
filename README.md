@@ -39,16 +39,6 @@ Use the **official OpenAI Codex plugin for Claude Code** if your main goal is:
 - background job lifecycle for long-running work
 - code review and code-task delegation as the primary workflow
 
-Use **gstack** if you already use gstack for its wider toolkit and want Codex as one part of that ecosystem.
-
-`codex-bridge` is the better choice when the problem is:
-
-> "I want Claude and Codex to collaborate on arbitrary artifacts inside one session."
-
-It is not the best choice when the problem is:
-
-> "I just want the most polished off-the-shelf Codex wrapper for Claude Code."
-
 ## What this gives you
 
 ### MCP tools
