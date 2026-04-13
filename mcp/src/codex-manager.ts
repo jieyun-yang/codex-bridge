@@ -1,8 +1,32 @@
 import { Codex, Thread, ThreadOptions, ModelReasoningEffort, SandboxMode } from "@openai/codex-sdk";
+import { appendFileSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
 
 const CODEX_PATH = process.env.CODEX_BIN_PATH || "codex";
 const DEFAULT_MODEL = process.env.CODEX_DEFAULT_MODEL || "gpt-5.4";
-const DEFAULT_TIMEOUT_MS = 120_000;
+const DEFAULT_TIMEOUT_MS = 300_000;
+
+// --- Structured logging ---
+// Writes to ~/.agents/telemetry/codex-bridge.jsonl. Each entry ~200-300 bytes.
+// At moderate usage (20 calls/day) this is ~2MB/year. No auto-rotation — clean
+// up manually or add rotation if volume grows.
+const LOG_DIR = join(homedir(), ".agents", "telemetry");
+const LOG_FILE = join(LOG_DIR, "codex-bridge.jsonl");
+let logDirCreated = false;
+
+function logBridgeEvent(event: Record<string, unknown>): void {
+  try {
+    if (!logDirCreated) {
+      mkdirSync(LOG_DIR, { recursive: true });
+      logDirCreated = true;
+    }
+    const line = JSON.stringify({ ts: new Date().toISOString(), ...event }) + "\n";
+    appendFileSync(LOG_FILE, line);
+  } catch {
+    // Logging must never break the bridge.
+  }
+}
 const THREAD_TTL_MS = 30 * 60_000; // evict idle threads after 30 minutes
 
 /** Runtime controls that callers can pass to startThread/resumeThread. */
@@ -141,19 +165,51 @@ export async function runOnThread(
   const preEntry = thread.id ? threadPool.get(thread.id) : undefined;
   if (preEntry) preEntry.activeTurns++;
 
+  const startTime = Date.now();
+  const isNewThread = !thread.id;
+  const logBase = {
+    tool: "runOnThread",
+    thread_id: thread.id ?? "(new)",
+    timeout_ms: timeoutMs,
+    prompt_length: prompt.length,
+  };
+
   try {
     const turn = await thread.run(prompt, { signal: controller.signal });
+    const durationMs = Date.now() - startTime;
     // Register thread in pool now that ID is available.
     if (thread.id && !threadPool.has(thread.id)) {
       threadPool.set(thread.id, { thread, lastUsed: Date.now(), activeTurns: 1 });
     } else if (thread.id) {
       threadPool.get(thread.id)!.lastUsed = Date.now();
     }
+    logBridgeEvent({
+      ...logBase,
+      thread_id: thread.id ?? logBase.thread_id,
+      status: "ok",
+      duration_ms: durationMs,
+      response_length: turn.finalResponse.length,
+      new_thread: isNewThread,
+    });
     return turn.finalResponse;
   } catch (err) {
+    const durationMs = Date.now() - startTime;
     if (controller.signal.aborted) {
+      logBridgeEvent({
+        ...logBase,
+        status: "timeout",
+        duration_ms: durationMs,
+        new_thread: isNewThread,
+      });
       throw new TimeoutError(timeoutMs);
     }
+    logBridgeEvent({
+      ...logBase,
+      status: "error",
+      duration_ms: durationMs,
+      error: err instanceof Error ? err.message : String(err),
+      new_thread: isNewThread,
+    });
     throw err;
   } finally {
     clearTimeout(timer);

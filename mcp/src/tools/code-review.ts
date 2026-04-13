@@ -1,7 +1,7 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
-import { startThread, runOnThread, getThreadId, type RuntimeOptions } from "../codex-manager.js";
+import { startThread, runOnThread, getThreadId, getDefaultTimeoutMs, type RuntimeOptions } from "../codex-manager.js";
 import { formatError, textResponse } from "../utils.js";
 import { typedError, classifyError } from "../errors.js";
 import { REVIEW_SYSTEM_PROMPT, buildReviewPrompt } from "../prompts.js";
@@ -67,8 +67,8 @@ export const reviewSchema = z.object({
   timeout_ms: z
     .number()
     .optional()
-    .default(120000)
-    .describe("Per-call timeout in ms. Default is 120s (2 min). Bump for very large or complex diffs."),
+    .optional()
+    .describe("Per-call timeout in ms. Defaults to bridge DEFAULT_TIMEOUT_MS (currently 5 min). Lower for small diffs."),
 });
 
 export type ReviewInput = z.infer<typeof reviewSchema>;
@@ -209,7 +209,7 @@ export async function reviewTool(input: ReviewInput) {
       ...(input.sandbox_mode && { sandbox_mode: input.sandbox_mode }),
     };
     const thread = startThread(input.working_dir, runtime);
-    const response = await runOnThread(thread, fullPrompt, input.timeout_ms);
+    const response = await runOnThread(thread, fullPrompt, input.timeout_ms ?? getDefaultTimeoutMs());
 
     const threadId = getThreadId(thread);
     return textResponse(

@@ -79,7 +79,7 @@ codex-bridge/
 ├── mcp/                          # the stdio MCP server (v3.2.0)
 │   ├── src/
 │   │   ├── index.ts              # registers the 4 tools
-│   │   ├── codex-manager.ts      # thread pool, mutex, TTL eviction, RuntimeOptions
+│   │   ├── codex-manager.ts      # thread pool, mutex, TTL eviction, RuntimeOptions, telemetry
 │   │   ├── session-store.ts      # bridge-local capsule staging (session_id → thread_id)
 │   │   ├── prompts.ts            # bridge-side system prompts (review + challenge)
 │   │   ├── errors.ts             # typed error categories + classifyError
@@ -181,7 +181,7 @@ Restart Claude Code. `/codex-collab` should now be available.
 | `CODEX_BIN_PATH` | `codex` (PATH lookup) | Absolute path to the `codex` CLI binary |
 | `CODEX_DEFAULT_MODEL` | `gpt-5.4` | Default Codex model for all tools |
 
-Default timeout: 120s per call. Override with `timeout_ms`.
+Default timeout: 300s (5 min) per call. Override with `timeout_ms`.
 
 ---
 

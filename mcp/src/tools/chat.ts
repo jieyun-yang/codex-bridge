@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { resumeThread, runOnThread, startThread, getThreadId, type RuntimeOptions } from "../codex-manager.js";
+import { resumeThread, runOnThread, startThread, getThreadId, getDefaultTimeoutMs, type RuntimeOptions } from "../codex-manager.js";
 import { formatError, textResponse } from "../utils.js";
 import { typedError, classifyError } from "../errors.js";
 import { consume, peek, isSessionId, isConsumed, markConsumed, acquireKeyLock, SESSION_PREFIX } from "../session-store.js";
@@ -67,7 +67,7 @@ export const chatSchema = z.object({
   timeout_ms: z
     .number()
     .optional()
-    .describe("Per-call timeout in ms. Defaults to 120000 (2 min). Bump for complex prompts."),
+    .describe("Per-call timeout in ms. Defaults to bridge DEFAULT_TIMEOUT_MS (currently 5 min). Lower for simple follow-ups."),
 });
 
 export type ChatInput = z.infer<typeof chatSchema>;
@@ -162,7 +162,7 @@ export async function chatTool(input: ChatInput) {
       ? startThread(workingDir, runtime)
       : resumeThread(input.thread_id!, workingDir, runtime);
 
-    const effectiveTimeout = input.timeout_ms ?? 120000;
+    const effectiveTimeout = input.timeout_ms ?? getDefaultTimeoutMs();
     const response = await runOnThread(thread, finalPrompt, effectiveTimeout);
 
     // Run succeeded — consume capsule and mark session.
