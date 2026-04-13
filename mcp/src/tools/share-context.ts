@@ -36,6 +36,7 @@ import { stage, isSessionId, isConsumed, acquireKeyLock, newSessionId, SESSION_P
 export const shareContextSchema = z.object({
   context: z
     .string()
+    .max(500_000)
     .describe("Background context to stage for the next codex_chat call (project summary, files, etc.)"),
   session_id: z
     .string()

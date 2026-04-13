@@ -24,7 +24,7 @@ import { CHALLENGE_SYSTEM_PROMPT } from "../prompts.js";
  */
 
 export const chatSchema = z.object({
-  prompt: z.string().describe("Message to send on the thread"),
+  prompt: z.string().max(500_000).describe("Message to send on the thread"),
   session_id: z
     .string()
     .optional()
@@ -66,6 +66,9 @@ export const chatSchema = z.object({
     .describe("Codex sandbox mode. Controls what the model can write. Default is SDK default (typically workspace-write)."),
   timeout_ms: z
     .number()
+    .int()
+    .min(1000)
+    .max(600_000)
     .optional()
     .describe("Per-call timeout in ms. Defaults to bridge DEFAULT_TIMEOUT_MS (currently 5 min). Lower for simple follow-ups."),
 });

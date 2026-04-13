@@ -66,7 +66,9 @@ export const reviewSchema = z.object({
     .describe("Codex sandbox mode. Reviews are typically read-only; default is SDK default."),
   timeout_ms: z
     .number()
-    .optional()
+    .int()
+    .min(1000)
+    .max(600_000)
     .optional()
     .describe("Per-call timeout in ms. Defaults to bridge DEFAULT_TIMEOUT_MS (currently 5 min). Lower for small diffs."),
 });
