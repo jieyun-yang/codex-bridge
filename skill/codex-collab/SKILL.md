@@ -93,7 +93,7 @@ When Codex lists strengths, surface them under a `## What's working` heading BEF
 
 When Codex lists confidence notes or coverage gaps, surface under a `## Coverage gaps` heading AFTER the findings.
 
-**Runtime controls.** All threaded tools (`codex_chat`, `codex_code_review`) accept optional `model`, `reasoning_effort` (minimal/low/medium/high/xhigh), and `sandbox_mode` (read-only/workspace-write/danger-full-access). These are set at thread creation time — on follow-up turns with an existing `thread_id`, they are ignored (SDK limitation). Default model is `gpt-5.4`.
+**Runtime controls.** All threaded tools (`codex_chat`, `codex_code_review`) accept optional `model`, `reasoning_effort` (minimal/low/medium/high/xhigh), and `sandbox_mode` (read-only/workspace-write/danger-full-access). These are set at thread creation time — on follow-up turns with an existing `thread_id`, they are ignored (SDK limitation). Default model is `gpt-5.5`.
 
 ## Recovery
 

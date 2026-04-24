@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 
 const CODEX_PATH = process.env.CODEX_BIN_PATH || "codex";
-const DEFAULT_MODEL = process.env.CODEX_DEFAULT_MODEL || "gpt-5.4";
+const DEFAULT_MODEL = process.env.CODEX_DEFAULT_MODEL || "gpt-5.5";
 const DEFAULT_TIMEOUT_MS = 300_000;
 
 // --- Structured logging ---

@@ -179,7 +179,7 @@ Restart Claude Code. `/codex-collab` should now be available.
 | Variable | Default | Purpose |
 |---|---|---|
 | `CODEX_BIN_PATH` | `codex` (PATH lookup) | Absolute path to the `codex` CLI binary |
-| `CODEX_DEFAULT_MODEL` | `gpt-5.4` | Default Codex model for all tools |
+| `CODEX_DEFAULT_MODEL` | `gpt-5.5` | Default Codex model for all tools |
 
 Default timeout: 300s (5 min) per call. Override with `timeout_ms`.
 
