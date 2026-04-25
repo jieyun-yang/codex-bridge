@@ -32,7 +32,7 @@ export const chatSchema = z.object({
   thread_id: z
     .string()
     .optional()
-    .describe("Real Codex thread_id, returned by a prior codex_chat or codex_exec call. Use this for follow-up turns or to resume a historical thread."),
+    .describe("Real Codex thread_id, returned by a prior codex_chat call. Use this for follow-up turns or to resume a historical thread."),
   context_behavior: z
     .enum(["consume", "ignore"])
     .optional()
@@ -42,7 +42,7 @@ export const chatSchema = z.object({
     .enum(["text", "challenge"])
     .optional()
     .default("text")
-    .describe("Output format. 'text' (default) returns free-text response. 'challenge' prepends the challenge system prompt (structured critique framing) but still returns free text — no schema constraint is applied."),
+    .describe("Output format. 'text' (default) returns free-text response. 'challenge' prepends the challenge system prompt for structured critique — but only on the FIRST turn after a session_id (i.e. when the thread is being lazy-created from staged context). On a thread_id resume, output_format=challenge is a no-op because the framing was either set on turn 1 or not at all; to re-frame an existing thread, start a new session via codex_share_context."),
   focus: z
     .enum(["balanced", "security", "architecture", "performance", "challenge"])
     .optional()

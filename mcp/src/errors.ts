@@ -12,6 +12,7 @@
 
 export type ErrorCategory =
   | "codex_missing"         // codex binary not found
+  | "git_missing"           // git binary not found (codex_code_review only)
   | "auth_missing"          // no API key / auth not configured
   | "thread_not_found"      // thread ID unknown or not resumable
   | "thread_not_resumable"  // thread exists but can't resume (e.g., corrupt state)
@@ -24,7 +25,7 @@ export type ErrorCategory =
   | "review_target_invalid" // missing base_branch or commit_sha for the target type
   | "diff_empty"            // nothing to review for the requested target
   | "diff_too_large"        // diff exceeds size limit
-  | "stage_rejected"        // share_context: append on thread_id, or consumed session
+  | "stage_rejected"        // share_context: append on thread_id (consumed-session attempts return session_consumed instead)
   | "unknown"               // catch-all for unexpected errors
 
 interface ErrorEnvelope {
@@ -52,6 +53,7 @@ interface ErrorEnvelope {
  */
 const CATEGORY_SEMANTICS: Record<ErrorCategory, { retryable: boolean; resumable: boolean; next_step: string }> = {
   codex_missing:          { retryable: false, resumable: false, next_step: "Install the Codex CLI: npm install -g @openai/codex. Or set CODEX_BIN_PATH to the binary path." },
+  git_missing:            { retryable: false, resumable: false, next_step: "Install git. codex_code_review uses local git to build the diff before sending it to Codex." },
   auth_missing:           { retryable: false, resumable: false, next_step: "Set OPENAI_API_KEY or run: codex auth login." },
   thread_not_found:       { retryable: false, resumable: false, next_step: "Start a new session via codex_share_context, or check codex_list_sessions for historical threads." },
   thread_not_resumable:   { retryable: false, resumable: false, next_step: "Start a new session. The old thread state may be corrupt." },
@@ -64,7 +66,7 @@ const CATEGORY_SEMANTICS: Record<ErrorCategory, { retryable: boolean; resumable:
   review_target_invalid:  { retryable: false, resumable: false, next_step: "Provide the required parameter: base_branch for target=branch, commit_sha for target=commit." },
   diff_empty:             { retryable: false, resumable: false, next_step: "Nothing to review. Check the target — are there actually changes to review?" },
   diff_too_large:         { retryable: false, resumable: false, next_step: "Scope down: review individual commits, a single directory, or split the branch diff." },
-  stage_rejected:         { retryable: false, resumable: true,  next_step: "Check the error detail. Common causes: mode=append on a thread_id (not allowed), or staging into a consumed session_id." },
+  stage_rejected:         { retryable: false, resumable: true,  next_step: "Check the error detail. Common cause: mode=append on a thread_id (not allowed). Consumed-session staging returns session_consumed instead." },
   unknown:                { retryable: false, resumable: false, next_step: "Unexpected error. Check the message for details." },
 };
 

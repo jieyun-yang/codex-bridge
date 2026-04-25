@@ -173,8 +173,8 @@ export async function reviewTool(input: ReviewInput) {
             `Path not found (ENOENT): ${input.working_dir ?? "cwd"}. Check that the working directory exists.`
           );
         }
-        return typedError("codex_missing", "codex_code_review", {},
-          "git binary not found. codex_code_review requires git to build diffs."
+        return typedError("git_missing", "codex_code_review", {},
+          "git binary not found. codex_code_review requires git to build diffs before sending them to Codex."
         );
       }
       return typedError("cwd_invalid", "codex_code_review", { working_dir: input.working_dir }, `Diff build failed: ${msg}`);
@@ -188,10 +188,9 @@ export async function reviewTool(input: ReviewInput) {
       return typedError("diff_too_large", "codex_code_review", { bytes: diff.length, limit: MAX_DIFF_BYTES });
     }
 
-    // 2. Build the prompt: system instructions + rubric + framing
-    //    + diff. The system prompt is prepended to the user prompt because
-    //    the SDK has no separate system-prompt channel (same convention as
-    //    codex_exec used in Slice 1).
+    // 2. Build the prompt: system instructions + rubric + framing + diff.
+    //    The system prompt is prepended to the user prompt because the SDK
+    //    has no separate system-prompt channel.
     const userPrompt = buildReviewPrompt({
       target: {
         type: input.target,
