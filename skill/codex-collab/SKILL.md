@@ -32,7 +32,7 @@ When any error has `retryable: false`, do not silently retry. Tell the user what
 
 ## Mode: code-review
 
-Review of CODE specifically. Only use when the user explicitly asks for code review. For anything else (plans, specs, responses, designs) use the challenge mode below.
+Use only when the user explicitly asks for code review (per the boundary in the lead).
 
 1. Determine target: `uncommitted` (default — `git diff HEAD` scope; **untracked files are excluded** — tell the user to `git add` new files first if they want them reviewed), `branch` (with `base_branch`), or `commit` (with `commit_sha`).
 2. Optionally set `focus`: `balanced` (default), `security`, `architecture`, `performance`, or `challenge`.
@@ -58,6 +58,7 @@ Critique any artifact — plans, specs, designs, architecture docs, proposed cod
 5. Call `codex_chat` with `session_id`, the critique instruction (include the template content in the prompt if loaded), and **`output_format: "challenge"`**. Capture `thread_id` from the response.
 6. The response is free text containing issues, strengths, and confidence notes. Parse and render it (see "Findings format" below).
 7. Follow-up rounds: `codex_chat` with `thread_id`. The challenge system prompt framing persists in thread history from turn 1 — do NOT re-send the system prompt on follow-ups. DO include the phase template again if you want to keep the phase lens sticky.
+8. **Mode validation:** thread mode is recorded on creation. Passing `output_format=challenge` on a `thread_id` resume is verified against the recorded mode — if the thread was born in `text` mode (or has no recorded mode), the bridge returns a typed `mode_mismatch` error. To switch framing, stage a new session via `codex_share_context` with `output_format=challenge`.
 
 ## Mode: delegate
 
@@ -93,7 +94,7 @@ When Codex lists strengths, surface them under a `## What's working` heading BEF
 
 When Codex lists confidence notes or coverage gaps, surface under a `## Coverage gaps` heading AFTER the findings.
 
-**Runtime controls.** All threaded tools (`codex_chat`, `codex_code_review`) accept optional `model`, `reasoning_effort` (minimal/low/medium/high/xhigh), and `sandbox_mode` (read-only/workspace-write/danger-full-access). These are set at thread creation time — on follow-up turns with an existing `thread_id`, they are ignored (SDK limitation). Default model is `gpt-5.5`.
+**Runtime controls.** All threaded tools (`codex_chat`, `codex_code_review`) accept optional `model`, `reasoning_effort` (minimal/low/medium/high/xhigh), and `sandbox_mode` (read-only/workspace-write/danger-full-access). These are set at thread creation time. On `thread_id` resume: ignored if the thread is still hot in the bridge's local pool (SDK limitation — ThreadOptions can't be mutated post-creation); applied if the thread has been cold-resumed (after 30-min idle eviction or process restart). Default model is `gpt-5.5`.
 
 ## Recovery
 
