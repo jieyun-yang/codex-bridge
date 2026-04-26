@@ -4,6 +4,7 @@ import { formatError, textResponse } from "../utils.js";
 import { typedError, classifyError } from "../errors.js";
 import { consume, peek, isSessionId, isConsumed, markConsumed, acquireKeyLock, SESSION_PREFIX } from "../session-store.js";
 import { CHALLENGE_SYSTEM_PROMPT } from "../prompts.js";
+import { getThreadMode, recordThreadMode } from "../mode-store.js";
 
 /**
  * codex_chat — continue (or start) a Codex conversation.
@@ -42,7 +43,7 @@ export const chatSchema = z.object({
     .enum(["text", "challenge"])
     .optional()
     .default("text")
-    .describe("Output format. 'text' (default) returns free-text response. 'challenge' prepends the challenge system prompt for structured critique — but only on the FIRST turn after a session_id (i.e. when the thread is being lazy-created from staged context). On a thread_id resume, output_format=challenge is a no-op because the framing was either set on turn 1 or not at all; to re-frame an existing thread, start a new session via codex_share_context."),
+    .describe("Output format. 'text' (default) returns free-text response. 'challenge' prepends the challenge system prompt on turn 1 (session_id flow). Each thread's mode is recorded at creation; passing output_format=challenge on a thread_id resume is verified against that record — mismatch returns a typed mode_mismatch error. To start fresh in a different mode, stage a new session via codex_share_context."),
   focus: z
     .enum(["balanced", "security", "architecture", "performance", "challenge"])
     .optional()
@@ -97,6 +98,20 @@ export async function chatTool(input: ChatInput) {
       { session_id: input.session_id, context_behavior: input.context_behavior },
       "context_behavior=ignore is not allowed with session_id. Sessions are one-shot — the staged context must be consumed on the first call. Use thread_id for follow-ups where ignore makes sense."
     );
+  }
+
+  // Mode validation: on thread_id resume, output_format=challenge requires the
+  // thread to have been born in challenge mode (recorded by mode-store on the
+  // first run). Unknown threads (no record) are treated as text-mode — we won't
+  // claim challenge framing we can't verify.
+  if (input.thread_id && input.output_format === "challenge") {
+    const recordedMode = getThreadMode(input.thread_id);
+    if (recordedMode !== "challenge") {
+      return typedError("mode_mismatch", "codex_chat",
+        { thread_id: input.thread_id, requested: "challenge", recorded: recordedMode ?? "no record" },
+        `Thread ${input.thread_id} was not born in challenge mode (recorded: ${recordedMode ?? "no record found"}). Challenge framing is set on turn 1 and persists in thread history; you cannot promote a text-mode thread mid-stream. Stage a new session via codex_share_context with output_format=challenge.`
+      );
+    }
   }
 
   const stagingKey = input.session_id ?? input.thread_id!;
@@ -177,6 +192,16 @@ export async function chatTool(input: ChatInput) {
     }
 
     const realThreadId = input.thread_id ?? getThreadId(thread);
+
+    // Record the thread's mode on first turn (session_id flow only — thread_id
+    // resumes don't create new threads). The mode reflects what was actually
+    // injected: "challenge" if the challenge prompt was prepended on this turn,
+    // "text" otherwise. This is the source of truth for future thread_id
+    // resumes' mode validation.
+    if (input.session_id) {
+      const bornMode = input.output_format === "challenge" ? "challenge" : "text";
+      recordThreadMode(realThreadId, bornMode);
+    }
 
     return textResponse(
       JSON.stringify(

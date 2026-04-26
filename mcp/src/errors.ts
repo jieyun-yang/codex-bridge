@@ -26,6 +26,7 @@ export type ErrorCategory =
   | "diff_empty"            // nothing to review for the requested target
   | "diff_too_large"        // diff exceeds size limit
   | "stage_rejected"        // share_context: append on thread_id (consumed-session attempts return session_consumed instead)
+  | "mode_mismatch"         // thread_id resume: output_format=challenge on a thread not born in challenge mode
   | "unknown"               // catch-all for unexpected errors
 
 interface ErrorEnvelope {
@@ -67,6 +68,7 @@ const CATEGORY_SEMANTICS: Record<ErrorCategory, { retryable: boolean; resumable:
   diff_empty:             { retryable: false, resumable: false, next_step: "Nothing to review. Check the target — are there actually changes to review?" },
   diff_too_large:         { retryable: false, resumable: false, next_step: "Scope down: review individual commits, a single directory, or split the branch diff." },
   stage_rejected:         { retryable: false, resumable: true,  next_step: "Check the error detail. Common cause: mode=append on a thread_id (not allowed). Consumed-session staging returns session_consumed instead." },
+  mode_mismatch:          { retryable: false, resumable: true,  next_step: "Thread was not created in challenge mode. Challenge framing is set on turn 1 and persists in history; you cannot promote a text-mode thread mid-stream. Stage a new session via codex_share_context with output_format=challenge to start a thread in the desired mode." },
   unknown:                { retryable: false, resumable: false, next_step: "Unexpected error. Check the message for details." },
 };
 
