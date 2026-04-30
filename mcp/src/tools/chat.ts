@@ -56,7 +56,7 @@ export const chatSchema = z.object({
   model: z
     .string()
     .optional()
-    .describe("Codex model override (e.g. 'gpt-5.5', 'codex-mini-latest'). Defaults to CODEX_DEFAULT_MODEL env var or gpt-5.5."),
+    .describe("Codex model override (e.g. 'gpt-5.4', 'codex-mini-latest'). Defaults to CODEX_DEFAULT_MODEL env var or gpt-5.4. Note: gpt-5.5 is gated to the official Codex CLI/app and not yet accessible via the TypeScript SDK."),
   reasoning_effort: z
     .enum(["minimal", "low", "medium", "high", "xhigh"])
     .optional()
